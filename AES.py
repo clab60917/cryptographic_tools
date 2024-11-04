@@ -256,7 +256,7 @@ def AES_Decrypt(ciphertext: List[int], key: List[int]) -> List[int]:
     return result
 
 def test_AES():
-    """Fonction de test avec choix du type d'entrée"""
+    """Fonction de test avec choix du type d'entrée et du mode"""
     
     # Configuration de la sortie vers fichier et console
     import sys
@@ -274,103 +274,120 @@ def test_AES():
         sys.stdout = MultiWriter()
 
         print("================ TEST AES ================")
+        print("\nChoisissez le mode :")
+        print("1. Test AES complet")
+        print("2. Mode simplifié (uniquement SubBytes, ShiftRows, MixColumns)")
+        
+        mode = input("Votre choix (1-2): ")
+
         print("\nChoisissez le type d'entrée :")
         print("1. Entrée hexadécimale prédéfinie")
         print("2. Entrée texte")
         print("3. Entrée hexadécimale personnalisée")
+        print("4. État exercice 2")
         
-        choice = input("Votre choix (1-3): ")
+        choice = input("Votre choix (1-4): ")
 
-        # Clé commune
-        key = [
-            0x00, 0x01, 0x02, 0x03,
-            0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b,
-            0x0c, 0x0d, 0x0e, 0x0f
-        ]
-
+        # Définir l'état initial selon le choix
         if choice == '1':
-            plaintext = [
-                0x00, 0x11, 0x22, 0x33,
-                0x44, 0x55, 0x66, 0x77,
-                0x88, 0x99, 0xaa, 0xbb,
-                0xcc, 0xdd, 0xee, 0xff
+            state = [
+                [0x00, 0x44, 0x88, 0xcc],
+                [0x11, 0x55, 0x99, 0xdd],
+                [0x22, 0x66, 0xaa, 0xee],
+                [0x33, 0x77, 0xbb, 0xff]
             ]
             test_name = "TEST ENTRÉE HEXADÉCIMALE PRÉDÉFINIE"
 
         elif choice == '2':
             print("\nEntrez votre texte (16 caractères max):")
             message = input()
-            plaintext = [ord(c) for c in message.ljust(16)]
+            text = [ord(c) for c in message.ljust(16)]
+            state = [[text[i+4*j] for j in range(4)] for i in range(4)]
             test_name = "TEST ENTRÉE TEXTE"
 
         elif choice == '3':
             print("\nEntrez votre chaîne hexadécimale (32 caractères, ex: 000102...)")
             hex_string = input()
             try:
-                plaintext = [int(hex_string[i:i+2], 16) for i in range(0, len(hex_string), 2)]
-                if len(plaintext) != 16:
+                text = [int(hex_string[i:i+2], 16) for i in range(0, len(hex_string), 2)]
+                if len(text) != 16:
                     raise ValueError("La longueur doit être de 16 octets")
+                state = [[text[i+4*j] for j in range(4)] for i in range(4)]
             except Exception as e:
                 print(f"Erreur: {e}")
                 sys.stdout = original_stdout
                 return
             test_name = "TEST ENTRÉE HEXADÉCIMALE PERSONNALISÉE"
 
+        elif choice == '4':
+            state = [
+                [0x12, 0xcf, 0x21, 0xde],
+                [0x00, 0xa4, 0xf4, 0x05],
+                [0xc6, 0x4e, 0xa9, 0x78],
+                [0x82, 0xec, 0x6b, 0x60]
+            ]
+            test_name = "TEST EXERCICE 2"
+
         else:
             print("Choix invalide")
             sys.stdout = original_stdout
             return
 
-        # Exécution du test
-        print(f"\n{'='*20} DÉBUT {test_name} {'='*20}")
-        print(f"\nPlaintext (hex): {' '.join(f'{x:02x}' for x in plaintext)}")
-        print(f"Plaintext (ascii): {' '.join(chr(x) if 32 <= x <= 126 else '.' for x in plaintext)}")
-        
-        # Chiffrement
-        ciphertext = AES_Encrypt(plaintext, key)
-        
-        # Déchiffrement
-        decrypted = AES_Decrypt(ciphertext, key)
-        
-        # Vérification
-        print(f"\n{'='*20} VÉRIFICATION {test_name} {'='*20}")
-        print(f"Plaintext original (hex): {' '.join(f'{x:02x}' for x in plaintext)}")
-        print(f"Texte déchiffré (hex):   {' '.join(f'{x:02x}' for x in decrypted)}")
-        print(f"Plaintext original (ascii): {' '.join(chr(x) if 32 <= x <= 126 else '.' for x in plaintext)}")
-        print(f"Texte déchiffré (ascii):   {' '.join(chr(x) if 32 <= x <= 126 else '.' for x in decrypted)}")
-        print(f"Test {'réussi' if plaintext == decrypted else 'échoué'}!")
-        print(f"{'='*50}")
+        if mode == '2':
+            # Mode simplifié : uniquement SubBytes, ShiftRows, MixColumns
+            print(f"\n{'='*20} DÉBUT {test_name} {'='*20}")
+            print("\nÉtat initial:")
+            print_state(state, "Initial")
+            
+            # 1. SubBytes
+            print("\n=== ÉTAPE 1: SubBytes ===")
+            state_after_subbytes = SubBytes(state.copy())
+            
+            # 2. ShiftRows
+            print("\n=== ÉTAPE 2: ShiftRows ===")
+            state_after_shiftrows = ShiftRows(state_after_subbytes.copy())
+            
+            # 3. MixColumns
+            print("\n=== ÉTAPE 3: MixColumns ===")
+            print("Calculs détaillés pour MixColumns:")
+            state_after_mixcolumns = MixColumns(state_after_shiftrows.copy())
+
+        else:
+            # Mode complet AES
+            # Convertir state en plaintext
+            plaintext = [state[i][j] for j in range(4) for i in range(4)]
+            
+            # Clé commune
+            key = [
+                0x00, 0x01, 0x02, 0x03,
+                0x04, 0x05, 0x06, 0x07,
+                0x08, 0x09, 0x0a, 0x0b,
+                0x0c, 0x0d, 0x0e, 0x0f
+            ]
+
+            print(f"\n{'='*20} DÉBUT {test_name} {'='*20}")
+            print(f"\nPlaintext (hex): {' '.join(f'{x:02x}' for x in plaintext)}")
+            print(f"Plaintext (ascii): {' '.join(chr(x) if 32 <= x <= 126 else '.' for x in plaintext)}")
+            
+            # Chiffrement
+            ciphertext = AES_Encrypt(plaintext, key)
+            
+            # Déchiffrement
+            decrypted = AES_Decrypt(ciphertext, key)
+            
+            # Vérification
+            print(f"\n{'='*20} VÉRIFICATION {test_name} {'='*20}")
+            print(f"Plaintext original (hex): {' '.join(f'{x:02x}' for x in plaintext)}")
+            print(f"Texte déchiffré (hex):   {' '.join(f'{x:02x}' for x in decrypted)}")
+            print(f"Plaintext original (ascii): {' '.join(chr(x) if 32 <= x <= 126 else '.' for x in plaintext)}")
+            print(f"Texte déchiffré (ascii):   {' '.join(chr(x) if 32 <= x <= 126 else '.' for x in decrypted)}")
+            print(f"Test {'réussi' if plaintext == decrypted else 'échoué'}!")
+            print(f"{'='*50}")
 
         # Restaurer la sortie standard
         sys.stdout = original_stdout
 
     print("\nRésultats complets sauvegardés dans aes_output.txt")
-    
-def test_exercice_2():
-    # État initial donné
-    state = [
-        [0x12, 0xcf, 0x21, 0xde],
-        [0x00, 0xa4, 0xf4, 0x05],
-        [0xc6, 0x4e, 0xa9, 0x78],
-        [0x82, 0xec, 0x6b, 0x60]
-    ]
-    
-    print("État initial:")
-    print_state(state, "Initial")
-    
-    # 1. SubBytes
-    state_after_subbytes = SubBytes(state)
-    
-    # 2. ShiftRows
-    state_after_shiftrows = ShiftRows(state_after_subbytes)
-    
-    # 3. MixColumns
-    # Cette étape montrera les calculs détaillés
-    state_after_mixcolumns = MixColumns(state_after_shiftrows)
-
-if __name__ == "__main__":
-    test_exercice_2()
 
 if __name__ == "__main__":
     # Configuration de l'affichage du terminal
@@ -384,4 +401,3 @@ if __name__ == "__main__":
     
     # Lance le test
     test_AES()
-    test_AES2()

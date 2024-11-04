@@ -1,7 +1,68 @@
 ================ TEST AES ================
 
+Choisissez le mode :
+1. Test AES complet
+2. Mode simplifié (uniquement SubBytes, ShiftRows, MixColumns)
+Votre choix (1-2): 
 Choisissez le type d'entrée :
 1. Entrée hexadécimale prédéfinie
 2. Entrée texte
 3. Entrée hexadécimale personnalisée
-Votre choix (1-3): 
+4. État exercice 2
+Votre choix (1-4): 
+Entrez votre texte (16 caractères max):
+
+==================== DÉBUT TEST ENTRÉE TEXTE ====================
+
+État initial:
+
+Initial:
+┌────┬────┬────┬────┐
+│ 63 │ 6f │ 63 │ 70 │
+├────┼────┼────┼────┤
+│ 6f │ 75 │ 69 │ 63 │
+├────┼────┼────┼────┤
+│ 75 │ 63 │ 75 │ 69 │
+├────┼────┼────┼────┤
+│ 63 │ 6f │ 6f │ 63 │
+└────┴────┴────┴────┘
+
+=== ÉTAPE 1: SubBytes ===
+
+Après SubBytes:
+┌────┬────┬────┬────┐
+│ fb │ a8 │ fb │ 51 │
+├────┼────┼────┼────┤
+│ a8 │ 9d │ f9 │ fb │
+├────┼────┼────┼────┤
+│ 9d │ fb │ 9d │ f9 │
+├────┼────┼────┼────┤
+│ fb │ a8 │ a8 │ fb │
+└────┴────┴────┴────┘
+
+=== ÉTAPE 2: ShiftRows ===
+
+Après ShiftRows:
+┌────┬────┬────┬────┐
+│ fb │ a8 │ fb │ 51 │
+├────┼────┼────┼────┤
+│ 9d │ f9 │ fb │ a8 │
+├────┼────┼────┼────┤
+│ 9d │ f9 │ 9d │ fb │
+├────┼────┼────┼────┤
+│ fb │ fb │ a8 │ a8 │
+└────┴────┴────┴────┘
+
+=== ÉTAPE 3: MixColumns ===
+Calculs détaillés pour MixColumns:
+
+Après MixColumns:
+┌────┬────┬────┬────┐
+│ 37 │ 59 │ ce │ 12 │
+├────┼────┼────┼────┤
+│ 9d │ aa │ 02 │ a4 │
+├────┼────┼────┼────┤
+│ 51 │ ae │ c2 │ f7 │
+├────┼────┼────┼────┤
+│ fb │ 0e │ 3b │ eb │
+└────┴────┴────┴────┘
