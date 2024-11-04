@@ -1,0 +1,7 @@
+================ TEST AES ================
+
+Choisissez le type d'entrée :
+1. Entrée hexadécimale prédéfinie
+2. Entrée texte
+3. Entrée hexadécimale personnalisée
+Votre choix (1-3): 
