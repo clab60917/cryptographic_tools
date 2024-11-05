@@ -64,17 +64,42 @@ inv_mix_columns_matrix = [
     [0x0d, 0x09, 0x0e, 0x0b],
     [0x0b, 0x0d, 0x09, 0x0e]
 ]
+def convert_to_state(input_array: List[int]) -> List[List[int]]:
+    """Convertit un tableau 1D en matrice d'état AES (par colonnes)"""
+    state = [[0 for _ in range(4)] for _ in range(4)]
+    for i in range(4):
+        for j in range(4):
+            state[i][j] = input_array[i + 4*j]
+    return state
+
+def convert_from_state(state: List[List[int]]) -> List[int]:
+    """Convertit une matrice d'état AES en tableau 1D (par colonnes)"""
+    output = []
+    for j in range(4):
+        for i in range(4):
+            output.append(state[i][j])
+    return output
+
 def print_state(state: List[List[int]], step: str):
     """Affiche l'état actuel de la matrice de manière formatée"""
     print(f"\n{step}:")
     print("┌────┬────┬────┬────┐")
-    for row in state:
+    # Affichage modifié pour refléter l'ordre des colonnes
+    for i in range(4):
         print("│", end=" ")
-        print(" │ ".join(f"{x:02x}" for x in row), end=" ")
+        print(" │ ".join(f"{state[i][j]:02x}" for j in range(4)), end=" ")
         print("│")
-        if row != state[-1]:
+        if i != 3:
             print("├────┼────┼────┼────┤")
     print("└────┴────┴────┴────┘")
+    
+    # Affichage supplémentaire pour montrer la lecture par colonnes
+    print("\nLecture par colonnes:")
+    columns = []
+    for j in range(4):
+        column = [f"{state[i][j]:02x}" for i in range(4)]
+        columns.append(" ".join(column))
+    print(" | ".join(columns))
 
 def SubBytes(state: List[List[int]], inverse: bool = False) -> List[List[int]]:
     """Applique la substitution de bytes via la S-box ou son inverse"""
@@ -84,7 +109,6 @@ def SubBytes(state: List[List[int]], inverse: bool = False) -> List[List[int]]:
             state[i][j] = box[state[i][j]]
     print_state(state, "Après SubBytes" if not inverse else "Après InvSubBytes")
     return state
-
 def ShiftRows(state: List[List[int]], inverse: bool = False) -> List[List[int]]:
     """Décale cycliquement les lignes (ou inverse)"""
     if not inverse:
@@ -94,7 +118,7 @@ def ShiftRows(state: List[List[int]], inverse: bool = False) -> List[List[int]]:
     else:
         state[1] = state[1][-1:] + state[1][:-1]
         state[2] = state[2][-2:] + state[2][:-2]
-        state[3] = state[3][-3:] + state[3][:-3]
+        state[3] = state[3][-3:] + state[3][:3]
     print_state(state, "Après ShiftRows" if not inverse else "Après InvShiftRows")
     return state
 
@@ -117,37 +141,51 @@ def multiply_gf(a: int, b: int) -> int:
     return result
 
 def MixColumns(state: List[List[int]], inverse: bool = False) -> List[List[int]]:
-    """Mixage des colonnes (ou inverse)"""
+    """Mixage des colonnes (ou inverse) avec affichage détaillé"""
     matrix = inv_mix_columns_matrix if inverse else mix_columns_matrix
     result = [[0 for _ in range(4)] for _ in range(4)]
     
-    for i in range(4):
-        for j in range(4):
+    print("\nDétail des calculs MixColumns:")
+    for j in range(4):  # Pour chaque colonne
+        print(f"\nColonne {j}:")
+        for i in range(4):  # Pour chaque ligne de la matrice résultante
+            sum_value = 0
+            print(f"  Calcul de la position [{i}][{j}]:")
             for k in range(4):
-                result[i][j] ^= multiply_gf(matrix[i][k], state[k][j])
+                product = multiply_gf(matrix[i][k], state[k][j])
+                print(f"    {hex(matrix[i][k])} × {hex(state[k][j])} = {hex(product)}")
+                sum_value ^= product
+            result[i][j] = sum_value
+            print(f"    Résultat = {hex(sum_value)}")
     
     state = [row[:] for row in result]
     print_state(state, "Après MixColumns" if not inverse else "Après InvMixColumns")
     return state
 
 def AddRoundKey(state: List[List[int]], round_key: List[List[int]]) -> List[List[int]]:
-    """Addition de la sous-clé de round"""
+    """Addition de la sous-clé de round avec affichage détaillé"""
+    print("\nDétail de AddRoundKey:")
     for i in range(4):
         for j in range(4):
-            state[i][j] ^= round_key[i][j]
+            original = state[i][j]
+            key_byte = round_key[i][j]
+            state[i][j] ^= key_byte
+            print(f"Position [{i}][{j}]: {hex(original)} ⊕ {hex(key_byte)} = {hex(state[i][j])}")
+    
     print_state(state, "Après AddRoundKey")
     return state
 
 def KeyExpansion(key: List[int]) -> List[List[List[int]]]:
-    """Expansion de la clé pour générer les sous-clés de rounds"""
+    """Expansion de la clé avec la nouvelle organisation par colonnes"""
     w = [[] for _ in range(Nb * (Nr + 1))]
     
     print("\nExpansion de la clé:")
     print("Clé initiale:", " ".join(f"{x:02x}" for x in key))
     
-    # Copie de la clé initiale
+    # Copie de la clé initiale par colonnes
     for i in range(Nk):
         w[i] = [key[4*i], key[4*i+1], key[4*i+2], key[4*i+3]]
+        print(f"Colonne {i} initiale:", " ".join(f"{x:02x}" for x in w[i]))
     
     # Génération des autres mots
     for i in range(Nk, Nb * (Nr + 1)):
@@ -166,9 +204,9 @@ def KeyExpansion(key: List[int]) -> List[List[List[int]]]:
             print(f"After Rcon {i}:", " ".join(f"{x:02x}" for x in temp))
             
         w[i] = [w[i-Nk][j] ^ temp[j] for j in range(4)]
-        print(f"Word {i}:", " ".join(f"{x:02x}" for x in w[i]))
+        print(f"Colonne {i}:", " ".join(f"{x:02x}" for x in w[i]))
     
-    # Conversion en format de round keys
+    # Conversion en format de round keys (par colonnes)
     round_keys = []
     for i in range(Nr + 1):
         round_key = [[w[4*i+j][k] for j in range(4)] for k in range(4)]
@@ -180,14 +218,15 @@ def KeyExpansion(key: List[int]) -> List[List[List[int]]]:
 def AES_Encrypt(plaintext: List[int], key: List[int]) -> List[int]:
     """
     Chiffrement AES complet avec affichage détaillé de chaque étape
+    La matrice d'état est organisée par colonnes
     """
     print("\n=== DÉBUT DU CHIFFREMENT AES ===")
-    print("\nPlaintext:", " ".join(f"{x:02x}" for x in plaintext))
-    print("Key:", " ".join(f"{x:02x}" for x in key))
+    print("\nPlaintext (par colonnes):", " ".join(f"{x:02x}" for x in plaintext))
+    print("Key (par colonnes):", " ".join(f"{x:02x}" for x in key))
     
-    # Conversion du plaintext en state array
-    state = [[plaintext[i+4*j] for j in range(4)] for i in range(4)]
-    print("\nState Array initial:")
+    # Conversion du plaintext en state array (par colonnes)
+    state = convert_to_state(plaintext)
+    print("\nState Array initial (lecture par colonnes):")
     print_state(state, "État initial")
     
     # Key expansion
@@ -200,33 +239,47 @@ def AES_Encrypt(plaintext: List[int], key: List[int]) -> List[int]:
     # Rounds principaux
     for round in range(1, Nr):
         print(f"\n=== ROUND {round} ===")
+        print("\nÉtat au début du round:")
+        print_state(state, f"Début round {round}")
+        
+        print("\nSubBytes:")
         state = SubBytes(state)
+        
+        print("\nShiftRows:")
         state = ShiftRows(state)
+        
+        print("\nMixColumns:")
         state = MixColumns(state)
+        
+        print("\nAddRoundKey:")
         state = AddRoundKey(state, round_keys[round])
     
     # Round final
     print(f"\n=== ROUND FINAL (ROUND {Nr}) ===")
+    print("\nÉtat au début du round final:")
+    print_state(state, "Début round final")
+    
     state = SubBytes(state)
     state = ShiftRows(state)
     state = AddRoundKey(state, round_keys[Nr])
     
-    # Conversion du state array en sortie
-    result = [state[i][j] for j in range(4) for i in range(4)]
-    print("\nRésultat final:", " ".join(f"{x:02x}" for x in result))
+    # Conversion du state array en sortie (par colonnes)
+    result = convert_from_state(state)
+    print("\nRésultat final (par colonnes):", " ".join(f"{x:02x}" for x in result))
     return result
 
 def AES_Decrypt(ciphertext: List[int], key: List[int]) -> List[int]:
     """
     Déchiffrement AES complet avec affichage détaillé de chaque étape
+    La matrice d'état est organisée par colonnes
     """
     print("\n=== DÉBUT DU DÉCHIFFREMENT AES ===")
-    print("\nCiphertext:", " ".join(f"{x:02x}" for x in ciphertext))
-    print("Key:", " ".join(f"{x:02x}" for x in key))
+    print("\nCiphertext (par colonnes):", " ".join(f"{x:02x}" for x in ciphertext))
+    print("Key (par colonnes):", " ".join(f"{x:02x}" for x in key))
     
-    # Conversion du ciphertext en state array
-    state = [[ciphertext[i+4*j] for j in range(4)] for i in range(4)]
-    print("\nState Array initial:")
+    # Conversion du ciphertext en state array (par colonnes)
+    state = convert_to_state(ciphertext)
+    print("\nState Array initial (lecture par colonnes):")
     print_state(state, "État initial")
     
     # Key expansion
@@ -241,6 +294,9 @@ def AES_Decrypt(ciphertext: List[int], key: List[int]) -> List[int]:
     # Rounds principaux
     for round in range(Nr-1, 0, -1):
         print(f"\n=== ROUND {Nr-round} ===")
+        print("\nÉtat au début du round:")
+        print_state(state, f"Début round {Nr-round}")
+        
         state = AddRoundKey(state, round_keys[round])
         state = MixColumns(state, inverse=True)
         state = ShiftRows(state, inverse=True)
@@ -250,11 +306,10 @@ def AES_Decrypt(ciphertext: List[int], key: List[int]) -> List[int]:
     print(f"\n=== ROUND FINAL ===")
     state = AddRoundKey(state, round_keys[0])
     
-    # Conversion du state array en sortie
-    result = [state[i][j] for j in range(4) for i in range(4)]
-    print("\nRésultat final:", " ".join(f"{x:02x}" for x in result))
+    # Conversion du state array en sortie (par colonnes)
+    result = convert_from_state(state)
+    print("\nRésultat final (par colonnes):", " ".join(f"{x:02x}" for x in result))
     return result
-
 def test_AES():
     """Fonction de test avec choix du type d'entrée et du mode"""
     
@@ -290,29 +345,32 @@ def test_AES():
 
         # Définir l'état initial selon le choix
         if choice == '1':
-            state = [
-                [0x00, 0x44, 0x88, 0xcc],
-                [0x11, 0x55, 0x99, 0xdd],
-                [0x22, 0x66, 0xaa, 0xee],
-                [0x33, 0x77, 0xbb, 0xff]
+            # Matrice d'entrée organisée par colonnes
+            input_matrix = [
+                0x00, 0x11, 0x22, 0x33,  # première colonne
+                0x44, 0x55, 0x66, 0x77,  # deuxième colonne
+                0x88, 0x99, 0xaa, 0xbb,  # troisième colonne
+                0xcc, 0xdd, 0xee, 0xff   # quatrième colonne
             ]
+            state = convert_to_state(input_matrix)
             test_name = "TEST ENTRÉE HEXADÉCIMALE PRÉDÉFINIE"
 
         elif choice == '2':
             print("\nEntrez votre texte (16 caractères max):")
             message = input()
             text = [ord(c) for c in message.ljust(16)]
-            state = [[text[i+4*j] for j in range(4)] for i in range(4)]
+            state = convert_to_state(text)
             test_name = "TEST ENTRÉE TEXTE"
 
         elif choice == '3':
-            print("\nEntrez votre chaîne hexadécimale (32 caractères, ex: 000102...)")
+            print("\nEntrez votre chaîne hexadécimale pour les colonnes (32 caractères, ex: 000102...)")
+            print("Format: première colonne, puis deuxième, etc.")
             hex_string = input()
             try:
                 text = [int(hex_string[i:i+2], 16) for i in range(0, len(hex_string), 2)]
                 if len(text) != 16:
                     raise ValueError("La longueur doit être de 16 octets")
-                state = [[text[i+4*j] for j in range(4)] for i in range(4)]
+                state = convert_to_state(text)
             except Exception as e:
                 print(f"Erreur: {e}")
                 sys.stdout = original_stdout
@@ -320,12 +378,14 @@ def test_AES():
             test_name = "TEST ENTRÉE HEXADÉCIMALE PERSONNALISÉE"
 
         elif choice == '4':
-            state = [
-                [0x12, 0xcf, 0x21, 0xde],
-                [0x00, 0xa4, 0xf4, 0x05],
-                [0xc6, 0x4e, 0xa9, 0x78],
-                [0x82, 0xec, 0x6b, 0x60]
+            # État de l'exercice 2 organisé par colonnes
+            input_matrix = [
+                0x12, 0xcf, 0x21, 0xde,  # première colonne
+                0x00, 0xa4, 0xf4, 0x05,  # deuxième colonne
+                0xc6, 0x4e, 0xa9, 0x78,  # troisième colonne
+                0x82, 0xec, 0x6b, 0x60   # quatrième colonne
             ]
+            state = convert_to_state(input_matrix)
             test_name = "TEST EXERCICE 2"
 
         else:
@@ -336,7 +396,7 @@ def test_AES():
         if mode == '2':
             # Mode simplifié : uniquement SubBytes, ShiftRows, MixColumns
             print(f"\n{'='*20} DÉBUT {test_name} {'='*20}")
-            print("\nÉtat initial:")
+            print("\nÉtat initial (lecture par colonnes):")
             print_state(state, "Initial")
             
             # 1. SubBytes
@@ -354,20 +414,20 @@ def test_AES():
 
         else:
             # Mode complet AES
-            # Convertir state en plaintext
-            plaintext = [state[i][j] for j in range(4) for i in range(4)]
+            # Convertir state en plaintext (par colonnes)
+            plaintext = convert_from_state(state)
             
-            # Clé commune
+            # Clé commune (organisée par colonnes)
             key = [
-                0x00, 0x01, 0x02, 0x03,
-                0x04, 0x05, 0x06, 0x07,
-                0x08, 0x09, 0x0a, 0x0b,
-                0x0c, 0x0d, 0x0e, 0x0f
+                0x00, 0x04, 0x08, 0x0c,  # première colonne
+                0x01, 0x05, 0x09, 0x0d,  # deuxième colonne
+                0x02, 0x06, 0x0a, 0x0e,  # troisième colonne
+                0x03, 0x07, 0x0b, 0x0f   # quatrième colonne
             ]
 
             print(f"\n{'='*20} DÉBUT {test_name} {'='*20}")
-            print(f"\nPlaintext (hex): {' '.join(f'{x:02x}' for x in plaintext)}")
-            print(f"Plaintext (ascii): {' '.join(chr(x) if 32 <= x <= 126 else '.' for x in plaintext)}")
+            print(f"\nPlaintext (hex, par colonnes): {' '.join(f'{x:02x}' for x in plaintext)}")
+            print(f"Key (hex, par colonnes): {' '.join(f'{x:02x}' for x in key)}")
             
             # Chiffrement
             ciphertext = AES_Encrypt(plaintext, key)
@@ -379,8 +439,6 @@ def test_AES():
             print(f"\n{'='*20} VÉRIFICATION {test_name} {'='*20}")
             print(f"Plaintext original (hex): {' '.join(f'{x:02x}' for x in plaintext)}")
             print(f"Texte déchiffré (hex):   {' '.join(f'{x:02x}' for x in decrypted)}")
-            print(f"Plaintext original (ascii): {' '.join(chr(x) if 32 <= x <= 126 else '.' for x in plaintext)}")
-            print(f"Texte déchiffré (ascii):   {' '.join(chr(x) if 32 <= x <= 126 else '.' for x in decrypted)}")
             print(f"Test {'réussi' if plaintext == decrypted else 'échoué'}!")
             print(f"{'='*50}")
 
@@ -399,5 +457,11 @@ if __name__ == "__main__":
     import sys
     sys.set_int_max_str_digits(0)
     
-    # Lance le test
-    test_AES()
+    try:
+        test_AES()
+        input("\nAppuyez sur Enter pour quitter...")
+    except KeyboardInterrupt:
+        print("\n\nSimulation interrompue par l'utilisateur")
+    except Exception as e:
+        print(f"\nErreur inattendue: {e}")
+        input("\nAppuyez sur Enter pour quitter...")

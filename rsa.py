@@ -103,11 +103,11 @@ def exercice_3():
     print("="*50)
     
     # Paramètres donnés
-    n = 493
-    e = 33
-    m1 = 110
-    c2 = 335
-    p = 17
+    n = 4331
+    e = 59
+    m1 = 3158
+    c2 = 167
+    p = 61
     
     print("\nParamètres donnés:")
     print(f"n = {n}")
